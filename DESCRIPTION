@@ -64,7 +64,8 @@ Imports:
     usethis,
     utils,
     yaml,
-    yesno
+    yesno,
+    renv
 Suggests:
     covr,
     devtools,
