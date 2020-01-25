@@ -147,7 +147,8 @@ add_shinyserver_file <- function(
 #' }
 #'}
 add_dockerfile <- function(
-  path = "DESCRIPTION", 
+  desc.path = "DESCRIPTION", 
+  renv.path = "lock.renv", 
   output = "Dockerfile", 
   pkg = get_golem_wd(), 
   from = paste0(
@@ -163,7 +164,8 @@ add_dockerfile <- function(
   expand = FALSE,
   open = TRUE,
   update_tar_gz = TRUE,
-  build_golem_from_source = TRUE
+  build_golem_from_source = TRUE,
+  renv=TRUE
 ) {
   
   where <- path(pkg, output) 
@@ -172,8 +174,12 @@ add_dockerfile <- function(
   
   usethis::use_build_ignore(path_file(where))
   
+  
+  
+  if ( !renv ){
+  
   dock <- dock_from_desc(
-    path = path, 
+    path = desc.path, 
     FROM = from, 
     AS = as,
     sysreqs = sysreqs, 
@@ -182,12 +188,30 @@ add_dockerfile <- function(
     build_golem_from_source = build_golem_from_source,
     update_tar_gz = update_tar_gz
   )
+  } else{
+    dock <- dock_from_renv(
+      path = renv.path, 
+      # FROM = from, 
+      AS = as,
+      sysreqs = sysreqs, 
+      # repos = repos,
+      expand = expand,
+      build_golem_from_source = build_golem_from_source,
+      update_tar_gz = update_tar_gz
+    )
+    
+    
+  }
+  
+  
+  
+  
   
   dock$EXPOSE(port)
   
   dock$CMD(
     glue::glue(
-      "R -e \"options('shiny.port'={port},shiny.host='{host}');{read.dcf(path)[1]}::run_app()\""
+      "R -e \"options('shiny.port'={port},shiny.host='{host}');{read.dcf(desc.path)[1]}::run_app()\""
     )
   )
   
@@ -212,7 +236,8 @@ add_dockerfile <- function(
 #' @rdname dockerfiles
 #' @importFrom fs path path_file
 add_dockerfile_shinyproxy <- function( 
-  path = "DESCRIPTION", 
+  desc.path = "DESCRIPTION", 
+  renv.path = "lock.renv", 
   output = "Dockerfile", 
   pkg = get_golem_wd(), 
   from = paste0(
@@ -226,7 +251,8 @@ add_dockerfile_shinyproxy <- function(
   expand = FALSE,
   open = TRUE,
   update_tar_gz = TRUE,
-  build_golem_from_source = TRUE
+  build_golem_from_source = TRUE,
+  renv=TRUE
 ){
   
   where <- path(pkg, output)
@@ -235,20 +261,35 @@ add_dockerfile_shinyproxy <- function(
   
   usethis::use_build_ignore(output)
   
+  if ( !renv){
   dock <- dock_from_desc(
-    path = path, 
+    path = desc.path, 
     FROM = from, 
-    AS = as, 
+    AS = as,
     sysreqs = sysreqs, 
-    repos = repos, 
+    repos = repos,
+    expand = expand,
+    build_golem_from_source = build_golem_from_source,
+    update_tar_gz = update_tar_gz
+  )
+} else{
+  dock <- dock_from_renv(
+    path = renv.dpath, 
+    # FROM = from, 
+    AS = as,
+    sysreqs = sysreqs, 
+    # repos = repos,
     expand = expand,
     build_golem_from_source = build_golem_from_source,
     update_tar_gz = update_tar_gz
   )
   
+  
+}
+  
   dock$EXPOSE(3838)
   dock$CMD(glue::glue(
-    " [\"R\", \"-e\", \"options('shiny.port'=3838,shiny.host='0.0.0.0');{read.dcf(path)[1]}::run_app()\"]"
+    " [\"R\", \"-e\", \"options('shiny.port'=3838,shiny.host='0.0.0.0');{read.dcf(desc.path)[1]}::run_app()\"]"
   ))
   dock$write(output)
   
@@ -273,7 +314,8 @@ add_dockerfile_shinyproxy <- function(
 #' @rdname dockerfiles
 #' @importFrom fs path path_file
 add_dockerfile_heroku <- function( 
-  path = "DESCRIPTION", 
+  desc.path = "DESCRIPTION", 
+  renv.path = "lock.renv", 
   output = "Dockerfile", 
   pkg = get_golem_wd(), 
   from = paste0(
@@ -287,28 +329,43 @@ add_dockerfile_heroku <- function(
   expand = FALSE,
   open = TRUE,
   update_tar_gz = TRUE,
-  build_golem_from_source = TRUE
+  build_golem_from_source = TRUE,
+  renv = TRUE
 ){
   where <- path(pkg, output)
   
   #if ( !check_file_exist(where) )  return(invisible(FALSE)) 
   
   usethis::use_build_ignore(output)
-  
+  if ( !renv){
   dock <- dock_from_desc(
-    path = path, 
+    path = desc.path, 
     FROM = from, 
-    AS = as, 
+    AS = as,
     sysreqs = sysreqs, 
     repos = repos,
     expand = expand,
     build_golem_from_source = build_golem_from_source,
     update_tar_gz = update_tar_gz
   )
+} else{
+  dock <- dock_from_renv(
+    path = renv.path, 
+    # FROM = from, 
+    AS = as,
+    sysreqs = sysreqs, 
+    # repos = repos,
+    expand = expand,
+    build_golem_from_source = build_golem_from_source,
+    update_tar_gz = update_tar_gz
+  )
+  
+  
+}
   
   dock$CMD(
     glue::glue(
-      "R -e \"options('shiny.port'=$PORT,shiny.host='0.0.0.0');{read.dcf(path)[1]}::run_app()\""
+      "R -e \"options('shiny.port'=$PORT,shiny.host='0.0.0.0');{read.dcf(desc.path)[1]}::run_app()\""
     )
   )
   dock$write(output)
@@ -321,7 +378,7 @@ add_dockerfile_heroku <- function(
   
   apps_h <- gsub(
     "\\.", "-", 
-    glue("{read.dcf(path)[1]}-{read.dcf(path)[1,][['Version']]}")
+    glue("{read.dcf(desc.path)[1]}-{read.dcf(desc.path)[1,][['Version']]}")
   )
   
   cat_rule( "From your command line, run:" )
@@ -361,7 +418,7 @@ alert_build <- function(path, output, build_golem_from_source){
   if ( ! build_golem_from_source ){
     cat_red_bullet(
       glue::glue(
-        "Be sure to keep your {read.dcf(path)[1]}_{read.dcf(path)[1,][['Version']]}.tar.gz file (generated using `devtools::build()` ) in the same folder as the {basename(output)} file generated"
+        "Be sure to keep your {read.dcf(desc.path)[1]}_{read.dcf(desc.path)[1,][['Version']]}.tar.gz file (generated using `devtools::build()` ) in the same folder as the {basename(output)} file generated"
       )
     )
   }
@@ -524,7 +581,7 @@ dock_from_desc <- function(
     
     if ( update_tar_gz ){
       old_version <- list.files(
-        pattern = glue::glue("{read.dcf(path)[1]}_.+.tar.gz"),
+        pattern = glue::glue("{read.dcf(desc.path)[1]}_.+.tar.gz"),
         full.names = TRUE
       )
       
@@ -534,13 +591,13 @@ dock_from_desc <- function(
         cat_red_bullet(glue::glue("{paste(old_version,collapse = ', ')} were removed from folder"))
       }
     
-      cat_green_tick(glue::glue(" {read.dcf(path)[1]}_{read.dcf(path)[1,][['Version']]}.tar.gz created."))
+      cat_green_tick(glue::glue(" {read.dcf(desc.path)[1]}_{read.dcf(desc.path)[1,][['Version']]}.tar.gz created."))
       devtools::build(path = ".")
     }
     # we use an already builded tar.gz file
     
     dock$COPY(
-      from = paste0(read.dcf(path)[1], "_*.tar.gz"),
+      from = paste0(read.dcf(desc.path)[1], "_*.tar.gz"),
       to = "/app.tar.gz"
     )
     dock$RUN("R -e 'remotes::install_local(\"/app.tar.gz\",upgrade=\"never\")'")
